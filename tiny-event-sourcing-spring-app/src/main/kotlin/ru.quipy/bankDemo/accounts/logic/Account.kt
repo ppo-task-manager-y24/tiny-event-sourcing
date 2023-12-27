@@ -56,7 +56,7 @@ class Account : AggregateState<UUID, AccountAggregate> {
             ?: throw IllegalArgumentException("No such account to transfer to: $bankAccountId")
 
         if (bankAccount.balance + transferAmount > BigDecimal(10_000_000)) {
-            return TransferTransactionDeclinedEvent(
+            return TransferDepositFailedEvent(
                 accountId = accountId,
                 bankAccountId = bankAccountId,
                 transactionId = transactionId,
@@ -65,7 +65,7 @@ class Account : AggregateState<UUID, AccountAggregate> {
         }
 
         if (bankAccounts.values.sumOf { it.balance } + transferAmount > BigDecimal(25_000_000)) {
-            return TransferTransactionDeclinedEvent(
+            return TransferDepositFailedEvent(
                 accountId = accountId,
                 bankAccountId = bankAccountId,
                 transactionId = transactionId,
@@ -73,12 +73,11 @@ class Account : AggregateState<UUID, AccountAggregate> {
             )
         }
 
-        return TransferTransactionAcceptedEvent(
+        return TransferDepositCompletedEvent(
             accountId = accountId,
             bankAccountId = bankAccountId,
             transactionId = transactionId,
-            transferAmount = transferAmount,
-            isDeposit = true
+            transferAmount = transferAmount
         )
     }
 
@@ -106,7 +105,7 @@ class Account : AggregateState<UUID, AccountAggregate> {
             ?: throw IllegalArgumentException("No such account to transfer from: $bankAccountId")
 
         if (transferAmount > bankAccount.balance) {
-            return TransferTransactionDeclinedEvent(
+            return TransferWithdrawFailedEvent(
                 accountId = accountId,
                 bankAccountId = bankAccountId,
                 transactionId = transactionId,
@@ -114,12 +113,11 @@ class Account : AggregateState<UUID, AccountAggregate> {
             )
         }
 
-        return TransferTransactionAcceptedEvent(
+        return TransferWithdrawCompletedEvent(
             accountId = accountId,
             bankAccountId = bankAccountId,
             transactionId = transactionId,
-            transferAmount = transferAmount,
-            isDeposit = false
+            transferAmount = transferAmount
         )
     }
 
@@ -204,14 +202,35 @@ class Account : AggregateState<UUID, AccountAggregate> {
     }
 
     @StateTransitionFunc
-    fun acceptTransfer(event: TransferTransactionAcceptedEvent) {
+    fun withdrawTransfer(event: TransferWithdrawCompletedEvent) {
         bankAccounts[event.bankAccountId]!!.initiatePendingTransaction(
             PendingTransaction(
                 event.transactionId,
                 event.transferAmount,
-                event.isDeposit
+                false
             )
         )
+    }
+
+    @StateTransitionFunc
+    fun withdrawTransfer(event: TransferWithdrawFailedEvent) {
+
+    }
+
+    @StateTransitionFunc
+    fun depositTransfer(event: TransferDepositCompletedEvent) {
+        bankAccounts[event.bankAccountId]!!.initiatePendingTransaction(
+            PendingTransaction(
+                event.transactionId,
+                event.transferAmount,
+                true
+            )
+        )
+    }
+
+    @StateTransitionFunc
+    fun depositTransfer(event: TransferDepositFailedEvent) {
+
     }
 
     @StateTransitionFunc
@@ -221,9 +240,6 @@ class Account : AggregateState<UUID, AccountAggregate> {
     @StateTransitionFunc
     fun rollbackTransaction(event: TransferTransactionRollbackedEvent) =
         bankAccounts[event.bankAccountId]!!.rollbackPendingTransaction(event.transactionId)
-
-    @StateTransitionFunc
-    fun externalAccountTransferDecline(event: TransferTransactionDeclinedEvent) = Unit
 }
 
 
@@ -241,23 +257,24 @@ data class BankAccount(
     }
 
     fun initiatePendingTransaction(pendingTransaction: PendingTransaction) {
-        if (!pendingTransaction.isDeposit) {
+        if (pendingTransaction.isDeposit) {
+            deposit(pendingTransaction.transferAmountFrozen)
+        } else {
             withdraw(pendingTransaction.transferAmountFrozen)
         }
         pendingTransactions[pendingTransaction.transactionId] = pendingTransaction
     }
 
     fun processPendingTransaction(trId: UUID) {
-        val pendingTransaction = pendingTransactions.remove(trId)!!
-        if (pendingTransaction.isDeposit) {
-            deposit(pendingTransaction.transferAmountFrozen)
-        }
+        pendingTransactions.remove(trId)!!
     }
 
     fun rollbackPendingTransaction(trId: UUID) {
         val pendingTransaction = pendingTransactions.remove(trId)!!
         if (!pendingTransaction.isDeposit) {
             deposit(pendingTransaction.transferAmountFrozen) // refund
+        } else {
+            withdraw(pendingTransaction.transferAmountFrozen)
         }
     }
 }
