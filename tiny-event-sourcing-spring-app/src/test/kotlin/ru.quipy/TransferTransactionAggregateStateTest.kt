@@ -99,7 +99,7 @@ class TransferTransactionAggregateStateTest {
         Awaitility.await().atMost(Duration.ofSeconds(10)).until {
             val transaction = transactionEsService.getState(transferEvent.transferId)!!
 
-            transaction.transactionState == TransferTransaction.TransactionState.SUCCEEDED
+            transaction.transactionState == TransferTransaction.TransactionState.COMPLETED
         }
 
         val state1 = accountEsService.getState(testAccountId)!!

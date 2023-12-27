@@ -27,7 +27,7 @@ class TransactionsSubscriber(
                 val sagaContext = sagaManager
                     .withContextGiven(event.sagaContext)
                     .launchSaga("TRANSFER_TRANSACTION", "TRANSFER_TRANSACTION")
-                    .performSagaStep("TRANSACTION_INIT", "transaction started")
+                    .performSagaStep("TRANSFER_INIT", "transaction started")
                     .sagaContext
 
                 logger.info("Got transaction to process: $event")
@@ -53,7 +53,7 @@ class TransactionsSubscriber(
             `when`(TransactionCompleteEvent::class) { event ->
                 val sagaContext = sagaManager
                     .withContextGiven(event.sagaContext)
-                    .performSagaStep("TRANSACTION_INIT", "transaction completed")
+                    .performSagaStep("TRANSFER_INIT", "transaction completed")
                     .sagaContext
 
                 logger.info("Got transaction completed event: $event")
@@ -71,7 +71,7 @@ class TransactionsSubscriber(
             `when`(TransactionFailedEvent::class) { event ->
                 val sagaContext = sagaManager
                     .withContextGiven(event.sagaContext)
-                    .performSagaStep("TRANSACTION_INIT", "transaction failed")
+                    .performSagaStep("TRANSFER_INIT", "transaction failed")
                     .sagaContext
 
                 logger.info("Got transaction failed event: $event")
@@ -89,7 +89,7 @@ class TransactionsSubscriber(
             `when`(TransactionWithdrawFailedEvent::class) { event ->
                 val sagaContext = sagaManager
                     .withContextGiven(event.sagaContext)
-                    .performSagaStep("TRANSACTION_INIT", "withdraw failed")
+                    .performSagaStep("TRANSFER_INIT", "withdraw failed")
                     .sagaContext
 
                 logger.info("Got transaction withdraw failed event: $event")
@@ -107,7 +107,7 @@ class TransactionsSubscriber(
             `when`(TransactionDepositFailedEvent::class) { event ->
                 val sagaContext = sagaManager
                     .withContextGiven(event.sagaContext)
-                    .performSagaStep("TRANSACTION_INIT", "deposit failed")
+                    .performSagaStep("TRANSFER_INIT", "deposit failed")
                     .sagaContext
 
                 logger.info("Got transaction deposit failed event: $event")
